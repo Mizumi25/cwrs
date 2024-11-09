@@ -29,4 +29,9 @@ class VehicleType extends Model
     protected $casts = [
         'price' => 'float', 
     ];
+    
+    public function vehicles()
+    {
+        return $this->hasMany(Vehicle::class);
+    }
 }

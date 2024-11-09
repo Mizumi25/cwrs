@@ -55,7 +55,16 @@ class UserResource extends Resource
                 Tables\Columns\TextColumn::make('name')->searchable(),
                 Tables\Columns\TextColumn::make('email')->searchable(),
                 Tables\Columns\TextColumn::make('phone_number')->searchable(),
-                Tables\Columns\TextColumn::make('role'),
+                Tables\Columns\TextColumn::make('role')->badge()
+                ->color(function (string $state): string
+                {
+                  return match ($state) {
+                    'admin' => 'danger',
+                    'client' => 'info'
+                    };
+                  }
+                  
+                  ),
             ])
             ->filters([
                 //

@@ -97,7 +97,14 @@
                             <div class="absolute bottom-[10%] text-white left-[5%] bg-gray-700 grid grid-cols-3 gap-6 z-[60] place-items-center items-center rounded-3xl">
                                 <div class="w-full h-full px-6 py-6"><span class="font-bold">Location:</span>Gingoog City</div>
                                 <div class="w-full h-full px-6 py-6"><span class="font-bold">Contact No.:</span>+63 9241 302 1828</div>
-                                <div class="w-full h-full px-6 py-6"><span class="font-bold">Email:</span>CarWash@gmail.com</div>
+                                  <button type="button" class="bg-[#ADD8E6] px-6 py-6 text-black rounded"
+                                    @auth
+                                        onclick="Livewire.dispatch('openModal', { component: 'book-modal', arguments: { user: {{ auth()->user()->id }} }})"
+                                    @else
+                                        onclick="window.location.href='{{ route('login') }}'"
+                                    @endauth>
+                                    Make A Booking
+                                </button>
                                 
                             </div>
                         </section>

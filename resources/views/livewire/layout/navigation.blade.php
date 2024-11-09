@@ -16,7 +16,7 @@ new class extends Component
     }
 }; ?>
 
-<nav x-data="{ open: false }" class="bg-white border-b border-gray-100">
+<nav x-data="{ open: false }" class="{{ $mode === 'dark' ? 'bg-[#262837] text-white' : 'bg-gray-100 text-black border-gray-100 border-b' }}">
     <!-- Primary Navigation Menu -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-16">
@@ -42,6 +42,16 @@ new class extends Component
                         {{ __('Home') }}
                     </a>
                 </div>
+                
+                @auth
+                  @if(auth()->user()->role === 'admin')
+                      <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex justify-center items-center">
+                          <a href="/admin" wire:navigate>
+                              {{ __('Admin') }}
+                          </a>
+                      </div>
+                  @endif
+              @endauth
             </div>
 
             <!-- Settings Dropdown -->
@@ -68,7 +78,7 @@ new class extends Component
                     <x-slot name="content">
                      <livewire:themeswitcher />
                       
-                        <x-dropdown-link :href="route('profile')" wire:navigate>
+                        <x-dropdown-link class="ml-[20px]" :href="route('profile')" wire:navigate>
                             {{ __('Profile') }}
                         </x-dropdown-link>
 

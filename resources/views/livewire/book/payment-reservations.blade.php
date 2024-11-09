@@ -24,7 +24,7 @@ new class extends Component {
         $this->amount = number_format($totalAmount, 2, '.', '');
         $this->paymentOption = 'full';
 
-        $this->serviceName = $reservation->service->name ?? 'Unknown Service';
+        $this->serviceName = $reservation->service->service_name ?? 'Unknown Service';
     }
 
     public function updatedPaymentOption($value)
@@ -86,7 +86,7 @@ new class extends Component {
 ?>
 
 
- <div class="grid grid-cols-2 place-items-center mx-2 p-4 sm:p-8 bg-white shadow sm:rounded-lg">
+ <div class="grid grid-cols-2 place-items-center mx-2 p-4 sm:p-8 shadow sm:rounded-lg px-[30px] {{ $mode === 'dark' ? 'bg-[#313246] text-white' : 'bg-white text-black' }} overflow-hidden shadow-sm sm:rounded-lg w-[91%] rounded-[10px]">
     <ol class="relative text-gray-500 border-s border-gray-200 dark:border-gray-700 dark:text-gray-400">                  
         <li class="mb-10 ms-6">            
             <span class="absolute flex items-center justify-center w-8 h-8 bg-gray-100 rounded-full -start-4 ring-4 ring-white dark:ring-gray-900 dark:bg-green-900">
@@ -110,21 +110,37 @@ new class extends Component {
             <p class="text-sm">Step details here</p>
         </li>
     </ol> 
-    <div>
-    <h2>Pay for {{ $serviceName }}</h2>
+    
+    
+    <div class="min-h-screen flex flex-col justify-center sm:py-12">
+            <div class="relative py-3 sm:max-w-xl sm:mx-auto">
+                <div class="absolute inset-0 bg-gradient-to-r from-blue-300 to-blue-600 shadow-lg transform -skew-y-3 sm:skew-y-0 sm:-rotate-6 sm:rounded-3xl"></div>
+                <div class="relative px-4 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
+                    <div class="max-w-md mx-auto">
+                        <div class="text-center mb-8">
+                            <h1 class="text-3xl font-semibold">Pay for {{ $serviceName }}</h1>
+                        </div>
+                        
+           
+                            <div class="mb-6">
+                                <label class="block mb-2 text-sm font-medium text-gray-700" for="paymentOption">Select Payment Option:</label>
+                                <div class="relative">
+                                    <i class="absolute left-0 top-[50%] transform translate-y-[-50%] ml-3 text-gray-500 fa-solid fa-percent"></i>
+                                        <select class="w-full" id="paymentOption" wire:model.live="paymentOption">
+                                            <option value="full">Pay Full Amount</option>
+                                            <option value="half">Pay 50%</option>
+                                        </select>
+                            </div>
+                                <button class="w-full py-2 px-4 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200" wire:click="initiateCheckout">Proceed to Pay Stripe ${{ number_format($amount, 2, '.', '') }}</button>
 
-    <!-- Payment Option Selection -->
-    <label for="paymentOption">Select Payment Option:</label>
-    <select id="paymentOption" wire:model.live="paymentOption">
-        <option value="full">Pay Full Amount</option>
-        <option value="half">Pay 50%</option>
-    </select>
-
-    <button wire:click="initiateCheckout">Proceed to Pay ${{ number_format($amount, 2, '.', '') }}</button>
-
-    <!-- Error Display -->
-    @if (session()->has('error'))
-        <div class="alert alert-danger">{{ session('error') }}</div>
-    @endif
+                              <!-- Error Display -->
+                              @if (session()->has('error'))
+                                  <div class="alert alert-danger">{{ session('error') }}</div>
+                              @endif
+                        <
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
-  </div>

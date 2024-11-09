@@ -163,7 +163,7 @@ new class extends Component
 ?>
 
 
-            <div class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
+            <div class="px-[30px] {{ $mode === 'dark' ? 'bg-[#313246] text-white' : 'bg-white text-black' }} overflow-hidden shadow-sm sm:rounded-lg w-[91%] rounded-[10px]">
                 <form wire:submit.prevent="submitReserve">
                     <div class="w-full">
                        <section class="px-4 py-8">
@@ -178,25 +178,20 @@ new class extends Component
                           </header>
                       
                               <h3 class="text-md font-medium text-gray-900 mb-4">Available Vehicle Types</h3>
-                                <div class="slider overflow-x-auto cursor-grab w-full">
-                                    <div class="sliderWrapper flex space-x-14 h-full">
-                                        @foreach ($vehicleTypes as $type)
-                                            <div class="sliderItem flex-none h-[18rem] w-[15rem] transition-transform duration-300 ease-in-out">
-                                              <figure 
-                                                  class="relative pb-[50%] overflow-hidden bg-white/20 shadow-lg ring-1 ring-black/5 h-[15rem] w-[15rem] rounded-2xl shadow-lg {{ $selectedVehicleTypeId === $type->id ? 'bg-blue-300' : '' }}"
-                                                  wire:click="selectVehicleType({{ $type->id }})" 
-                                              >
-                                                  <div class="p-4">
-                                                      <p><strong>ID:</strong> {{ $type->id }}</p>
-                                                      <p><strong>Name:</strong> {{ $type->name }}</p>
-                                                      <p><strong>Price:</strong> {{ $type->price }}</p>
-                                                  </div>
-                                                  <img src="{{ asset('storage/' . $type->icon) }}" class="absolute top-0 left-0 w-full h-full object-cover rounded-2xl" alt="VehicleTypeIcon" />
-                                              </figure>
-                                          </div>
-                                        @endforeach
-                                    </div>
-                                    
+                                <div class="grid grid-cols-2 gap-6"> 
+                                    @foreach ($vehicleTypes as $type)
+                                        <button type="button" 
+                                            class="w-full p-4 mb-4 rounded-lg 
+                                                   {{ $selectedVehicleTypeId === $type->id ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800' }}"
+                                            wire:click="selectVehicleType({{ $type->id }})">
+                                            <div class="flex flex-col items-center">
+                                                <img src="{{ asset('storage/' . $type->icon) }}" class="h-24 w-24 object-cover" alt="VehicleTypeIcon" />
+                                                <p><strong>ID:</strong> {{ $type->id }}</p>
+                                                <p><strong>Name:</strong> {{ $type->name }}</p>
+                                                <p><strong>Price:</strong> {{ $type->price }}</p>
+                                            </div>
+                                        </button>
+                                    @endforeach
                                 </div>
                               <div class="vehicleInput">
                                   <div class="mb-6">
@@ -317,12 +312,12 @@ new class extends Component
                             @foreach (array_slice($days, 0, 3) as $day)
                                 <div>
                                     <!-- Day header -->
-                                    <div 
-                                        class="text-center cursor-pointer font-semibold p-2 rounded 
+                                    <button type="button" 
+                                        class="text-center cursor-pointer w-full font-semibold p-2 rounded 
                                                {{ $selectedDate == $day->toDateString() ? 'bg-blue-500 text-white' : '' }}"
                                         wire:click="selectDay('{{ $day->toDateString() }}')">
                                         {{ $day->format('D, d') }}
-                                    </div>
+                                    </button>
                                     
                                     <!-- Time slots for each day -->
                                     <div class="mt-2">
@@ -363,7 +358,9 @@ new class extends Component
 
 
                     </div>
-                   <button :disabled="!$wire.isSubmitEnabled">{{ __('Reserve') }}</button>
+                   <div class="w-full flex justify-center items-center">
+                     <button class="bg-blue-300 text-white rounded-[5px] w-[80%]" :disabled="!$wire.isSubmitEnabled">{{ __('Reserve') }}</button>
+                   </div>
                 </form>
 
                 @if (session()->has('message'))

@@ -33,7 +33,7 @@ new class extends Component {
 }; ?>
 
 
- <div class="grid grid-cols-2 place-items-center mx-2 p-4 sm:p-8 bg-white shadow sm:rounded-lg">
+ <div class="grid grid-cols-2 place-items-center mx-2 p-4 sm:p-8 shadow sm:rounded-lg px-[30px] {{ $mode === 'dark' ? 'bg-[#313246] text-white' : 'bg-white text-black' }} overflow-hidden shadow-sm sm:rounded-lg w-[91%] rounded-[10px]">
     <ol class="relative text-gray-500 border-s border-gray-200 dark:border-gray-700 dark:text-gray-400">                  
         <li class="mb-10 ms-6">            
             <span class="absolute flex items-center justify-center w-8 h-8 bg-gray-100 rounded-full -start-4 ring-4 ring-white dark:ring-gray-900 dark:bg-gray-700">

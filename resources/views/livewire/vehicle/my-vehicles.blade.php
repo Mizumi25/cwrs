@@ -5,8 +5,8 @@ use App\Models\Vehicle;
 use App\Models\VehicleType;
 
 new class extends Component {
-    public $vehicleTypes;
-    public $selectedVehicleTypeId = null;
+    public $vehicleTypes = [];
+    public $selectedVehicleTypeId;
     public $model = '';
     public $make = '';
     public $year = '';
@@ -14,64 +14,101 @@ new class extends Component {
     public $color = '';
     public $mileage = '';
     public $vehicles;
+    public $selectedVehicleId = null;
 
     
     public function mount(): void 
     {
-    $this->vehicles = Vehicle::all()
-            ->where('user_id', auth()->id());
-    $this->vehicleTypes = VehicleType::all();
+        $this->vehicleTypes = VehicleType::select('id', 'name', 'description', 'price', 'icon')->get() ?? collect(); 
+        $this->vehicles = Vehicle::with('vehicleType')->where('user_id', auth()->id())->get() ?? collect();
     }
-    
+        
     public function selectVehicleType($vehicleTypeId)
     {
         $this->selectedVehicleTypeId = $vehicleTypeId;
+        \Log::info('Selected Vehicle Type ID: ' . $this->selectedVehicleTypeId);
+    }
+
+    public function selectVehicle($vehicleId)
+    {
+        $vehicle = Vehicle::find($vehicleId);
+        if ($vehicle) {
+            $this->selectedVehicleId = $vehicleId; 
+            $this->selectedVehicleTypeId = $vehicle->vehicle_type_id; 
+            $this->model = $vehicle->model;
+            $this->make = $vehicle->make;
+            $this->year = $vehicle->year;
+            $this->license_plate = $vehicle->license_plate;
+            $this->color = $vehicle->color;
+            $this->mileage = $vehicle->mileage;
+        }
+    }
+
+    public function cancelEdit()
+    {
+        $this->reset(['model', 'make', 'year', 'license_plate', 'color', 'mileage', 'selectedVehicleTypeId', 'selectedVehicleId']);
     }
 
     public function submitVehicle()
-   {
+{
     $this->validate([
         'selectedVehicleTypeId' => 'required|exists:vehicle_types,id',
         'model' => 'required|string',
         'make' => 'required|string',
         'year' => 'required|integer',
-        'license_plate' => 'required|string|unique:vehicles,license_plate',
+        'license_plate' => 'required|string|unique:vehicles,license_plate,' . $this->selectedVehicleId,
         'color' => 'required|string',
         'mileage' => 'nullable|integer',
     ]);
 
-    Vehicle::create([
-        'user_id' => auth()->id(),
-        'vehicle_type_id' => $this->selectedVehicleTypeId, 
-        'model' => $this->model,
-        'make' => $this->make,
-        'year' => $this->year,
-        'license_plate' => $this->license_plate,
-        'color' => $this->color,
-        'mileage' => $this->mileage,
-    ]);
+    if ($this->selectedVehicleId) {
+        $vehicle = Vehicle::find($this->selectedVehicleId);
+        if (!$vehicle) {
+            \Log::error('Vehicle not found for ID: ' . $this->selectedVehicleId);
+            return;
+        }
+        $vehicle->update([
+            'vehicle_type_id' => $this->selectedVehicleTypeId,
+            'model' => $this->model,
+            'make' => $this->make,
+            'year' => $this->year,
+            'license_plate' => $this->license_plate,
+            'color' => $this->color,
+            'mileage' => $this->mileage,
+        ]);
+        session()->flash('message', 'Vehicle updated successfully!');
+    } else {
+        Vehicle::create([
+            'user_id' => auth()->id(),
+            'vehicle_type_id' => $this->selectedVehicleTypeId, 
+            'model' => $this->model,
+            'make' => $this->make,
+            'year' => $this->year,
+            'license_plate' => $this->license_plate,
+            'color' => $this->color,
+            'mileage' => $this->mileage,
+        ]);
+        session()->flash('message', 'Vehicle added successfully!');
+    }
+    $this->vehicles = Vehicle::with('vehicleType')->where('user_id', auth()->id())->get() ?? collect();
     
-    
-
-    session()->flash('message', 'Vehicle added successfully!');
     $this->reset();
-   }
-   
-   public function getIsSubmitEnabledProperty()
-   {
-    return !empty($this->selectedVehicleTypeId) &&
-           !empty($this->selectedServiceId) &&
-           !empty($this->model) &&
-           !empty($this->make) &&
-           !empty($this->year) &&
-           !empty($this->license_plate) &&
-           !empty($this->color);
-   }
+}
+    
+    public function getIsSubmitEnabledProperty()
+    {
+        return !empty($this->selectedVehicleTypeId) &&
+               !empty($this->model) &&
+               !empty($this->make) &&
+               !empty($this->year) &&
+               !empty($this->license_plate) &&
+               !empty($this->color);
+    }
 }; ?>
 
 
   <div>
-       <div class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
+       <div class="px-[30px] {{ $mode === 'dark' ? 'bg-[#313246] text-white' : 'bg-white text-black' }} overflow-hidden shadow-sm sm:rounded-lg w-[91%] rounded-[10px]">
                 <form wire:submit.prevent="submitVehicle">
                     <div class="w-full">
                        <section class="px-4 py-8">
@@ -81,24 +118,21 @@ new class extends Component {
                       
                               <h3 class="text-md font-medium text-gray-900 mb-4">Available Vehicle Types</h3>
                                 <div class="w-full">
-                                    <div class="grid grid-cols-4 place-items-center gap-4">
-                                        @foreach ($vehicleTypes as $type)
-                                            <div class="sliderItem flex-none h-[6rem] w-[6rem] transition-transform duration-300 ease-in-out">
-                                              <figure 
-                                                  class="relative pb-[50%] overflow-hidden bg-white/20 shadow-lg ring-1 ring-black/5 h-full w-full rounded-1xl shadow-lg {{ $selectedVehicleTypeId === $type->id ? 'bg-blue-300' : '' }}"
-                                                  wire:click="selectVehicleType({{ $type->id }})" 
-                                              >
-                                                  <div class="p-4">
-                                                      <p><strong>ID:</strong> {{ $type->id }}</p>
-                                                      <p><strong>Name:</strong> {{ $type->name }}</p>
-                                                      <p><strong>Price:</strong> {{ $type->price }}</p>
-                                                  </div>
-                                                  <img src="{{ asset('storage/' . $type->icon) }}" class="absolute top-0 left-0 w-full h-full object-cover rounded-2xl" alt="VehicleTypeIcon" />
-                                              </figure>
-                                          </div>
-                                        @endforeach
-                                    </div>
-                                    
+                                  <div class="grid grid-cols-2 gap-6"> 
+                                    @foreach ($vehicleTypes as $type)
+                                        <button type="button" 
+                                            class="w-full p-4 mb-4 rounded-lg 
+                                                   {{ $selectedVehicleTypeId === $type->id ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800' }}"
+                                            wire:click="selectVehicleType({{ $type->id }})">
+                                            <div class="flex flex-col items-center">
+                                                <img src="{{ asset('storage/' . $type->icon) }}" class="h-24 w-24 object-cover" alt="VehicleTypeIcon" />
+                                                <p><strong>ID:</strong> {{ $type->id }}</p>
+                                                <p><strong>Name:</strong> {{ $type->name }}</p>
+                                                <p><strong>Price:</strong> {{ $type->price }}</p>
+                                            </div>
+                                        </button>
+                                    @endforeach
+                                </div>
                                 </div>
                               <div class="vehicleInput">
                                   <div class="mb-6">
@@ -149,6 +183,9 @@ new class extends Component {
                       </section>
                    </div>
                    <button :disabled="!$this->isSubmitEnabled">{{ __('Add New Vehicle') }}</button>
+                   <button wire:click="cancelEdit" type="button" class ="px-3 py-1 bg-red-500 text-white rounded">
+                      Cancel
+                  </button>
                 </form>
                  @if (session()->has('message'))
                     <div class="mt-4 text-green-600">
@@ -157,7 +194,7 @@ new class extends Component {
                 @endif
 
     <section class="mt-10">
-        <div class="mx-auto max-w-screen-xl px-4 lg:px-12">
+        <div class="px-4 lg:px-12">
             <div class="bg-white dark:bg-gray-800 relative shadow-md sm:rounded-lg overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
@@ -188,10 +225,10 @@ new class extends Component {
                                     <td class="px-4 py-3">{{ $vehicle->color }}</td>
                                      <td class="px-4 py-3">{{ $vehicle->mileage }}</td>
                                     <td class="px-4 py-3 flex items-center justify-end">
-                                        <button class="px-3 py-1 bg-green-500 text-white rounded">
-                                            <i class="fa-solid fa-right-to-bracket"></i>
-                                        </button>
-                                    </td>
+                                    <button wire:click="selectVehicle({{ $vehicle->id }})" class="px-3 py-1 bg-[#5186E8] text-white rounded" title="Edit Vehicle">
+                                        <i class="fa-solid fa-pen-nib"></i>
+                                    </button>
+                                </td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -229,4 +266,19 @@ new class extends Component {
                background-color: rgb(135,225,255); 
          }
      </style>
+     
+      <script>
+         document.addEventListener('DOMContentLoaded', function() {
+            const figure = document.querySelectorAll('.sliderItem figure'); 
+                figure.forEach(item => {
+                   item.addEventListener('click', function() {
+                        figure.forEach(i => {
+                            i.classList.remove('selected');
+                            i.style.transform = 'scale(1)'; 
+                            });
+                          this.classList.add('selected');
+                   });
+                });
+            });
+   </script>
 </div>

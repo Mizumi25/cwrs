@@ -1,7 +1,7 @@
 
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+        <h2 class="flex px-[30px] items-center rounded-[10px] h-[3rem] font-semibold text-xl text-gray-800 leading-tight {{ $mode === 'dark' ? 'bg-[#313246] text-white' : 'bg-white text-black' }}">
             {{ __('Manage My Vehicles') }}
         </h2>
     </x-slot>

@@ -80,9 +80,11 @@ class ServiceResource extends Resource
                 //
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\ViewAction::make()
+                ->link()
+                ->hiddenlabel()
+                ->icon('heroicon-o-chevron-right'),
+                
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
