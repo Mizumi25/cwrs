@@ -75,6 +75,7 @@ class AllReservationsResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+        ->query(Reservation::query()->whereNotIn('status', ['decline', 'cancelled', 'pending']))
             ->columns([
                 Tables\Columns\TextColumn::make('id')->label('Reservation ID')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('user.name')->label('User Name')->searchable()->sortable(),

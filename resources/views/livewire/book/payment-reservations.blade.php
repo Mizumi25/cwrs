@@ -34,14 +34,17 @@ new class extends Component {
         $vehicleTypePrice = $reservation->vehicle->vehicleType->price ?? 0;
         $currentDollarRate = 58.07;
         $totalAmount = ($servicePrice + $vehicleTypePrice) / $currentDollarRate;
-    
-        $this->amount = $value === 'half'
-            ? $totalAmount / 2
-            : $totalAmount;
-    
+        
+        if ($value === 'full') {
+            $this->amount = $totalAmount;
+        } else {
+            $percentage = (float)$value;
+            $this->amount = ($totalAmount * $percentage) / 100;
+        }
         
         $this->formattedAmount = number_format($this->amount, 2, '.', '');
     }
+
     
     public function initiateCheckout()
     {
@@ -49,7 +52,7 @@ new class extends Component {
             // Create a new Stripe Checkout session
             $stripe = new StripeClient(config('cashier.secret'));
             
-            $paymentStatus = $this->paymentOption === 'half' ? 'partialy_paid' : 'full_paid';
+            $paymentStatus = $this->paymentOption === 'half' ? 'partialy_paid' : 'fully_paid';
             
             $session = $stripe->checkout->sessions->create([
                 'payment_method_types' => ['card'],
@@ -112,35 +115,42 @@ new class extends Component {
     </ol> 
     
     
-    <div class="min-h-screen flex flex-col justify-center sm:py-12">
-            <div class="relative py-3 sm:max-w-xl sm:mx-auto">
-                <div class="absolute inset-0 bg-gradient-to-r from-blue-300 to-blue-600 shadow-lg transform -skew-y-3 sm:skew-y-0 sm:-rotate-6 sm:rounded-3xl"></div>
-                <div class="relative px-4 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
-                    <div class="max-w-md mx-auto">
-                        <div class="text-center mb-8">
-                            <h1 class="text-3xl font-semibold">Pay for {{ $serviceName }}</h1>
-                        </div>
-                        
-           
-                            <div class="mb-6">
-                                <label class="block mb-2 text-sm font-medium text-gray-700" for="paymentOption">Select Payment Option:</label>
-                                <div class="relative">
-                                    <i class="absolute left-0 top-[50%] transform translate-y-[-50%] ml-3 text-gray-500 fa-solid fa-percent"></i>
-                                        <select class="w-full" id="paymentOption" wire:model.live="paymentOption">
-                                            <option value="full">Pay Full Amount</option>
-                                            <option value="half">Pay 50%</option>
-                                        </select>
-                            </div>
-                                <button class="w-full py-2 px-4 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200" wire:click="initiateCheckout">Proceed to Pay Stripe ${{ number_format($amount, 2, '.', '') }}</button>
-
-                              <!-- Error Display -->
-                              @if (session()->has('error'))
-                                  <div class="alert alert-danger">{{ session('error') }}</div>
-                              @endif
-                        <
+  <div class="min-h-screen flex flex-col justify-center sm:py-12">
+    <div class="relative py-3 sm:max-w-xl sm:mx-auto">
+        <div class="absolute inset-0 bg-gradient-to-r from-blue-300 to-blue-600 shadow-lg transform -skew-y-3 sm:skew-y-0 sm:-rotate-6 sm:rounded-3xl"></div>
+        <div class="relative px-4 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
+            <div class="max-w-md mx-auto">
+                <div class="text-center mb-8">
+                    <h1 class="text-3xl font-semibold">Pay for {{ $serviceName }}</h1>
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block mb-2 text-sm font-medium text-gray-700" for="paymentOption">Select Payment Option:</label>
+                    <div class="relative">
+                        <i class="absolute left-0 top-[50%] transform translate-y-[-50%] ml-3 text-gray-500 fa-solid fa-percent"></i>
+                        <select class="w-full" id="paymentOption" wire:model.live="paymentOption">
+                            <option value="full">Pay Full Amount</option>
+                            <option value="50">Pay 50%</option>
+                            <option value="55">Pay 55%</option>
+                            <option value="60">Pay 60%</option>
+                            <option value="65">Pay 65%</option>
+                            <option value="70">Pay 70%</option>
+                            <option value="75">Pay 75%</option>
+                            <option value="80">Pay 80%</option>
+                            <option value="85">Pay 85%</option>
+                            <option value="90">Pay 90%</option>
+                            <option value="95">Pay 95%</option>
+                        </select>
                     </div>
+                    <button class="w-full py-2 px-4 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200" wire:click="initiateCheckout">Proceed to Pay Stripe ${{ number_format($amount, 2, '.', '') }}</button>
+
+                    <!-- Error Display -->
+                    @if (session()->has('error'))
+                        <div class="alert alert-danger">{{ session('error') }}</div>
+                    @endif
                 </div>
             </div>
         </div>
     </div>
 </div>
+

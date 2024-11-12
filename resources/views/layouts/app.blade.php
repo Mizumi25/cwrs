@@ -10,12 +10,19 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+    <style>
+      [x-cloak] {
+                display: none !important;
+            }
+    </style>
 
     <!-- Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @filamentStyles
 </head>
 <body class="overflow-x-hidden">
     @livewire('notifications')
+    @filamentScripts
     <div class="grid grid-cols-[auto,1fr] gap-0"> 
         <livewire:layout.sidenavigation />
         <div class="min-h-screen {{ $mode === 'dark' ? 'bg-[#262837] text-white' : 'bg-gray-100 text-black' }} overflow-hidden">

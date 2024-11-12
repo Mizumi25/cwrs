@@ -20,6 +20,8 @@ return new class extends Migration
             $table->foreignId('payment_id')->nullable()->constrained()->onDelete('cascade');
             $table->date('reservation_date'); 
             $table->enum('status', ['decline', 'approve', 'pending', 'done', 'not_appeared', 'cancelled', 'ongoing']);
+            $table->string('decline_message')->nullable(); 
+            $table->softDeletes();
             $table->timestamps();
         });
     }

@@ -9,6 +9,7 @@ use App\Models\Reservation;
 use Livewire\Volt\Component;
 use Carbon\Carbon; 
 use Filament\Notifications\Notification;
+use Filament\Notifications\Actions\Action;
 
 new class extends Component
 {
@@ -27,28 +28,65 @@ new class extends Component
     public $availableTimes;
     public $selectedDate;
     public $selectedTime;
+    public $isAgreed = false;
+    public $vehicles;
+    public $selectedVehicleId = null;
+    public $isVehicleInputEnabled = false;
+    public $licensePlateError = '';
     
     public function mount(): void 
-{
-    $this->vehicleTypes = VehicleType::select('id', 'name', 'description', 'price', 'icon')->get() ?? collect(); 
-    $this->service = Service::select('id', 'service_name', 'icon', 'description', 'price', 'duration', 'is_active', 'category', 'popularity')->get() ?? collect(); 
-    $this->currentDay = Carbon::now();
-    $this->generateDays();
-    $this->availableTimes = [
-        '08:00 am', '09:00 am', '10:00 am',
-        '11:00 am', '12:00 pm', '01:00 pm',
-        '02:00 pm', '03:00 pm', '04:00 pm',
-        '05:00 pm'
-    ];
-}
+    {
+        $this->vehicles = Vehicle::where('user_id', auth()->id())
+        ->select('id', 'make', 'model')
+        ->get() ?? collect(); 
+        $this->vehicleTypes = VehicleType::select('id', 'name', 'description', 'price', 'icon')->get() ?? collect(); 
+        $this->service = Service::select('id', 'service_name', 'icon', 'description', 'price', 'duration', 'is_active', 'category', 'popularity')->get() ?? collect(); 
+        $this->currentDay = Carbon::now();
+        $this->generateDays();
+        $this->availableTimes = [
+            '08:00 am', '09:00 am', '10:00 am',
+            '11:00 am', '12:00 pm', '01:00 pm',
+            '02:00 pm', '03:00 pm', '04:00 pm',
+            '05:00 pm'
+        ];
+    }
+    
+    public function updatedSelectedVehicleId($vehicleId)
+    {
+        $vehicle = Vehicle::find($vehicleId);
+        if ($vehicle) {
+            $this->make = $vehicle->make;
+            $this->model = $vehicle->model;
+            $this->year = $vehicle->year;
+            $this->license_plate = $vehicle->license_plate;
+            $this->color = $vehicle->color;
+            $this->mileage = $vehicle->mileage;
+            $this->selectedVehicleTypeId = $vehicle->vehicle_type_id; // Automatically set vehicle type ID
+            $this->isVehicleInputEnabled = true; 
+        }
+    }
     
     public function selectVehicleType($vehicleTypeId)
     {
         $this->selectedVehicleTypeId = $vehicleTypeId;
+        $vehicleType = $this->vehicleTypes->find($vehicleTypeId);
+        if ($vehicleType) {
+            $this->vehicleTypeName = $vehicleType->name;
+            $this->vehicleTypePrice = $vehicleType->price;
+            $this->isVehicleInputEnabled = true; 
+        }
     }
     public function selectService($serviceId)
     {
         $this->selectedServiceId = $serviceId;
+    }
+    
+    public function getTotalPriceProperty()
+    {
+        $servicePrice = optional($this->service->find($this->selectedServiceId))->price ?? 0;
+        $vehicleTypePrice = optional($this->vehicleTypes->find($this->selectedVehicleTypeId))->price ?? 0;
+    
+        return $servicePrice + $vehicleTypePrice;
     }
 
 
@@ -60,25 +98,50 @@ new class extends Component
         'model' => 'required|string',
         'make' => 'required|string',
         'year' => 'required|integer',
-        'license_plate' => 'required|string|unique:vehicles,license_plate',
+        'license_plate' => 'required|string',
         'color' => 'required|string',
         'mileage' => 'nullable|integer',
         'selectedDate' => 'required|date',
         'selectedTime' => 'required|string',
+        'isAgreed' => 'accepted',
     ]);
 
     $timeIn24HourFormat = date('H:i', strtotime($this->selectedTime));
 
-    $vehicle = Vehicle::create([
-        'user_id' => auth()->id(),
-        'vehicle_type_id' => $this->selectedVehicleTypeId, 
-        'model' => $this->model,
-        'make' => $this->make,
-        'year' => $this->year,
-        'license_plate' => $this->license_plate,
-        'color' => $this->color,
-        'mileage' => $this->mileage,
-    ]);
+    $existingVehicle = Vehicle::where('make', $this->make)
+        ->where('model', $this->model)
+        ->where('year', $this->year)
+        ->where('license_plate', $this->license_plate)
+        ->where('color', $this->color)
+        ->where('mileage', $this->mileage)
+        ->first();
+
+    if ($existingVehicle) {
+        $vehicleId = $existingVehicle->id;
+    } else {
+      $licensePlateExists = Vehicle::where('license_plate', $this->license_plate)
+            ->where('user_id', auth()->id())
+            ->exists();
+
+        if ($licensePlateExists) {
+            $this->licensePlateError = 'The license plate must be unique. Load an existing one instead';
+            return; 
+        } else {
+            $this->licensePlateError = ''; 
+        }
+      
+        $vehicle = Vehicle::create([
+            'user_id' => auth()->id(),
+            'vehicle_type_id' => $this->selectedVehicleTypeId,
+            'model' => $this->model,
+            'make' => $this->make,
+            'year' => $this->year,
+            'license_plate' => $this->license_plate,
+            'color' => $this->color,
+            'mileage' => $this->mileage,
+        ]);
+        $vehicleId = $vehicle->id;
+    }
     
     $schedule = Schedule::create([
         'date' => $this->selectedDate,
@@ -87,7 +150,7 @@ new class extends Component
 
      $reservation = Reservation::create([
         'user_id' => auth()->id(),
-        'vehicle_id' => $vehicle->id,
+        'vehicle_id' => $vehicleId,
         'service_id' => $this->selectedServiceId,
         'schedule_id' => $schedule->id, 
         'reservation_date' => Carbon::now(), 
@@ -102,6 +165,20 @@ new class extends Component
         Notification::make()
             ->title('Reservation of ' . $currentUser ->name . ' check now')
             ->body('A Reservation has reserved at: ' . $reservation->id . 'with' . $service->service_name . '. View Pending Reservations Now.')
+            //->actions([
+               // Action::make('approve')
+               //     ->button()
+                  //  ->color('success')
+                    //->action(function () use ($reservation) {
+                  //      $reservation->update(['status' => 'approve']);
+                   // }),
+                //Action::make('decline')
+                 //   ->button()
+                    //->color('danger')
+                   // ->action(function () use ($reservation) {
+                       // $reservation->update(['status' => 'decline']);
+                 //   }),
+          //  ])
              ->sendToDatabase($admin); 
     }
 
@@ -170,50 +247,55 @@ new class extends Component
                           <header>
                               <div class="flex flow-row gap-2 items-center">
                                   <div class="bg-[#6c8ee5] h-[60px] w-[60px] rounded-full grid place-items-center">
-                                      <span class="text-white">1/5</span>
+                                      <span class="text-white">1/4</span>
                                   </div>
                                   <h2 class="text-lg font-medium text-gray-900">{{ __('Input Vehicle') }}</h2>
                               </div>
                               <p class="mt-1 text-sm text-gray-600">{{ __("Select type and input details") }}</p>
                           </header>
-                      
                               <h3 class="text-md font-medium text-gray-900 mb-4">Available Vehicle Types</h3>
-                                <div class="grid grid-cols-2 gap-6"> 
+                              <div class="slider py-10 overflow-x-auto cursor-grab w-full">
+                                <div class="sliderWrapper overflow-x-scroll flex flex-row space-x-8 h-[18rem]"> 
                                     @foreach ($vehicleTypes as $type)
                                         <button type="button" 
-                                            class="w-full p-4 mb-4 rounded-lg 
-                                                   {{ $selectedVehicleTypeId === $type->id ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800' }}"
+                                            class="sliderItem rounded-2xl 
+                                                   {{ $selectedVehicleTypeId === $type->id ? 'bg-[#87e1ff] text-white' : 'bg-transparent text-gray-800' }} flex-none h-[15rem] w-[15rem] transition-transform duration-300 ease-in-out"
                                             wire:click="selectVehicleType({{ $type->id }})">
-                                            <div class="flex flex-col items-center">
-                                                <img src="{{ asset('storage/' . $type->icon) }}" class="h-24 w-24 object-cover" alt="VehicleTypeIcon" />
-                                                <p><strong>ID:</strong> {{ $type->id }}</p>
-                                                <p><strong>Name:</strong> {{ $type->name }}</p>
-                                                <p><strong>Price:</strong> {{ $type->price }}</p>
-                                            </div>
+                                            <figure 
+                                                  class="overflow-hidden bg-white/20 shadow-lg ring-1 ring-black/5 h-[15rem] w-[15rem] rounded-2xl shadow-lg">
+                                                <div class="flex flex-col items-center">
+                                                        <img src="{{ asset('storage/' . $type->icon) }}" class="h-24 w-24 object-cover" alt="VehicleTypeIcon" />
+                                                        <p><strong>ID:</strong> {{ $type->id }}</p>
+                                                        <p><strong>Name:</strong> {{ $type->name }}</p>
+                                                        <p><strong>Price:</strong> {{ $type->price }}</p>
+                                                </div>
+                                            </figure>
                                         </button>
                                     @endforeach
+                                </div>
                                 </div>
                               <div class="vehicleInput">
                                   <div class="mb-6">
                                       <label for="model" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Model</label>
-                                      <input wire:model.debounce.500ms="model" placeholder="Enter Model" type="text" id="model-input" class="bg-gray-50 border text-sm rounded-lg block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                      <input wire:model.debounce.500ms="model" placeholder="Enter Model" type="text" id="model-input" class="bg-gray-50 border text-sm rounded-lg block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" {{ !$isVehicleInputEnabled ? 'disabled' : '' }}>
                                   </div>
                                   <div class="mb-6">
                                       <label for="make" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Make</label>
-                                      <input wire:model.debounce.500ms="make" placeholder="Enter Make" type="text" id="make-input" class="bg-gray-50 border text-sm rounded-lg block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                      <input wire:model.debounce.500ms="make" placeholder="Enter Make" type="text" id="make-input" class="bg-gray-50 border text-sm rounded-lg block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" {{ !$isVehicleInputEnabled ? 'disabled' : '' }}>
                                   </div>
                                   <div class="grid grid-cols-2 gap-10">
                                       <div class="mb-6">
                                           <label for="color" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Color</label>
                                           <div class="flex items-center">
-                                              <input wire:model.debounce.500ms="color" type="color" id="color-input" class="cursor-pointer" style="border: none; padding: 0; width: 40px; height: 40px;">
-                                              <input wire:model.debounce.500ms="color" placeholder="Enter Color" type="text" id="color-text-input" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 ml-2">
+                                              <input wire:model.debounce.500ms="color" type="color" id="color-input" class="cursor-pointer" style="border: none; padding: 0; width: 40px; height: 40px;" {{ !$isVehicleInputEnabled ? 'disabled' : '' }}>
+                                              <input wire:model.debounce.500ms="color" placeholder="Enter Color" type="text" id="color-text-input" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 ml-2" {{ !$isVehicleInputEnabled ? 'disabled' : '' }}>
                                           </div>
                                       </div>
                                        <div class="mb-6">
                                           <label for="license_plate" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">License Plate Number</label>
-                                          <input wire:model.debounce.500ms="license_plate" placeholder="e.g., ABC1234" type="text" id="license_plate" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+                                          <input wire:model.debounce.500ms="license_plate" placeholder="e.g., ABC1234" type="text" id="license_plate" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" {{ !$isVehicleInputEnabled ? 'disabled' : '' }}>
                                           <p class="mt-1 text-xs text-gray-500">Please enter the vehicle's license plate number.</p>
+                                           <p class="mt-1 text-xs text-red-600">{{ $licensePlateError}}</p>
                                       </div>
                                     </div>
                                     <div>
@@ -225,7 +307,7 @@ new class extends Component
                                               </svg>
                                           </div>
                                             <div class="mb-6">
-                                                <select wire:model.debounce.500ms="year" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+                                                <select wire:model.debounce.500ms="year" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" {{ !$isVehicleInputEnabled ? 'disabled' : '' }}>
                                                     <option value="">Select Year</option>
                                                     @for ($i = date('Y'); $i >= 1970; $i--)
                                                         <option value="{{ $i }}">{{ $i }}</option>
@@ -236,8 +318,19 @@ new class extends Component
                                     </div>
                                     <div class="mb-6">
                                       <label for="mileage" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Mileage</label>
-                                      <input wire:model.debounce.500ms="mileage" placeholder="Enter Mileage" type="text" id="mileage" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+                                      <input wire:model.debounce.500ms="mileage" placeholder="Enter Mileage" type="text" id="mileage" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" {{ !$isVehicleInputEnabled ? 'disabled' : '' }}>
                                   </div>
+                              </div>
+                                      <h3 class="text-center">——————————Or—————————</h3>
+                              <div class="mb-6">
+                                  <label for="existing_vehicle" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Select Existing Vehicle</label>
+                                  <select wire:model.live="selectedVehicleId" class="bg-gray-50 border text-sm rounded-lg block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" 
+                                      >
+                                      <option value="">Select Vehicle</option>
+                                      @foreach ($vehicles as $vehicle)
+                                          <option value="{{ $vehicle->id }}">{{ $vehicle->make }} {{ $vehicle->model }}</option>
+                                      @endforeach
+                                  </select>
                               </div>
                       </section>
                       
@@ -246,7 +339,7 @@ new class extends Component
                         <header>
                             <div class="flex flow-row gap-2 items-center">
                                 <div class="bg-[#6c8ee5] h-[60px] w-[60px] rounded-full grid place-items-center">
-                                    <span class="text-white">2/5</span>
+                                    <span class="text-white">2/4</span>
                                 </div>
                                 <h2 class="text-lg font-medium text-gray-900">
                                     {{ __('Select Service') }}
@@ -260,19 +353,19 @@ new class extends Component
                         <h3 class="text-md font-medium text-gray-900 mb-4">Available Services</h3>
                         <div class="grid grid-cols-2 gap-6"> 
                             @foreach ($service->where('is_active', true) as $serve)
-                                <div class="itemService">
-                                    <figure class="transform overflow-hidden rounded-lg bg-white dark:bg-slate-800 shadow-md duration-300 hover:scale-105 hover:shadow-lg {{ $selectedServiceId === $serve->id ? 'bg-blue-300' : '' }}"
-                                          wire:click="selectService({{ $serve->id }})">
-                                        <img src="{{ asset('storage/' . $serve->icon) }}" class="h-48 w-full object-cover object-center" alt="ServiceIcon" />
-                                        <div class="p-4">
-                                            <p class="mb-2 text-lg font-medium dark:text-white text-gray-900"><strong>ID:</strong> {{ $serve->id }}</p>
-                                            <p class="mb-2 text-lg font-medium dark:text-white text-gray-900"><strong>Name:</strong> {{ $serve->service_name }}</p>
-                                            <p class="mb-2 text-base dark:text-gray-300 text-gray-700"><strong>Description:</strong> {{ $serve->description }}</p>
-                                            <p><strong>Price:</strong> {{ $serve->price }}</p>
-                                            <p class="ml-auto text-base font-medium text-green-500"><strong>Category:</strong> {{ $serve->category }}</p>
-                                        </div>
-                                    </figure>
-                                </div>
+                                <button class="itemService transform overflow-hidden rounded-lg dark:bg-slate-800 shadow-md duration-300 hover:scale-105 hover:shadow-lg {{ $selectedServiceId === $serve->id ? 'bg-blue-300 text-white' : 'bg-white text-gray-900' }}"
+                                      wire:click="selectService({{ $serve->id }})" type="button">
+                                  <figure>
+                                      <img src="{{ asset('storage/' . $serve->icon) }}" class="h-48 w-full object-cover object-center" alt="ServiceIcon" />
+                                      <div class="p-4">
+                                          <p class="mb-2 text-lg font-medium dark:text-white text-gray-900"><strong>ID:</strong> {{ $serve->id }}</p>
+                                          <p class="mb-2 text-lg font-medium dark:text-white text-gray-900"><strong>Name:</strong> {{ $serve->service_name }}</p>
+                                          <p class="mb-2 text-base dark:text-gray-300 text-gray-700"><strong>Description:</strong> {{ $serve->description }}</p>
+                                          <p><strong>Price:</strong> {{ $serve->price }}</p>
+                                          <p class="ml-auto text-base font-medium text-green-500"><strong>Category:</strong> {{ $serve->category }}</p>
+                                      </div>
+                                  </figure>
+                              </button>
                             @endforeach
                         </div>
                     </section>
@@ -285,7 +378,7 @@ new class extends Component
                       <header>
                         <div class="flex flow-row gap-2 items-center">
                             <div class="bg-[#6c8ee5] h-[60px] w-[60px] rounded-full grid place-items-center">
-                                <span class="text-white">3/5</span>
+                                <span class="text-white">3/4</span>
                             </div>
                             <h2 class="text-lg font-medium text-gray-900">
                                 {{ __('Set Schedule') }}
@@ -342,16 +435,47 @@ new class extends Component
                                 </div>
                             @endforeach
                         </div>
-                
-                        <!-- Selected Date and Time -->
-                        <div class="mt-4">
-                            <p>Selected Date: <strong>{{ $selectedDate ?? 'None' }}</strong></p>
-                            <p>Selected Time: <strong>{{ $selectedTime ?? 'None' }}</strong></p>
-                        </div>
                     </div>
                 </section>
 
 
+              <section class="px-4 py-8 h-full">
+                  <header>
+                      <div class="flex flow-row gap-2 items-center">
+                          <div class="bg-[#6c8ee5] h-[60px] w-[60px] rounded-full grid place-items-center">
+                              <span class="text-white">4/5</span>
+                          </div>
+                          <h2 class="text-lg font-medium text-gray-900">
+                              {{ __('Reservation Details') }}
+                          </h2>
+                      </div>
+                      <p class="mt-1 text-sm text-gray-600">
+                          {{ __("Review your reservation details") }}
+                      </p>
+                  </header>
+              
+                  <div class="mt-4 flex flex-col space-y-10 h-full justify-center items-center">
+                      <div class="border-[#6c8ee5] border-2 h-[5rem] flex items-center pl-9 rounded-2xl w-full">
+                          <p>Selected Date: <strong>{{ $selectedDate ?? '' }}</strong></p>
+                      </div>
+                      <div class="border-[#6c8ee5] border-2 h-[5rem] flex items-center pl-9 rounded-2xl w-full">
+                          <p>Selected Time: <strong>{{ $selectedTime ?? '' }}</strong></p>
+                      </div>
+                      <div class="border-[#6c8ee5] border-2 h-[5rem] flex items-center pl-9 rounded-2xl w-full">
+                          <p>Duration: <strong>{{ optional($service->find($selectedServiceId))->duration }} minutes</strong></p>
+                      </div>
+                      <div class="border-[#6c8ee5] border-2 h-[5rem] flex items-center pl-9 rounded-2xl w-full">
+                          <p>Total Price: <strong>P{{ $this->totalPrice }}</strong></p>
+                      </div>
+                  </div>
+                  
+                  <div class="mt-4 w-full flex justify-center">
+                      <label>
+                          <input type="checkbox" wire:model="isAgreed" class="mr-2">
+                          I agree to the terms and agreements.
+                      </label>
+                  </div>
+              </section>
 
 
 
@@ -359,8 +483,8 @@ new class extends Component
 
                     </div>
                    <div class="w-full flex justify-center items-center">
-                     <button class="bg-blue-300 text-white rounded-[5px] w-[80%]" :disabled="!$wire.isSubmitEnabled">{{ __('Reserve') }}</button>
-                   </div>
+                      <button class="bg-blue-300 text-white rounded-[5px] w-[80%]" :disabled="!$wire.isSubmitEnabled || !$wire.isAgreed">{{ __('Reserve') }}</button>
+                  </div>
                 </form>
 
                 @if (session()->has('message'))
@@ -379,34 +503,16 @@ new class extends Component
                       .sliderItem.blurred {
                           filter: blur(2px); 
                       }
-                      .sliderItem figure.selected {
-                          background-color: rgb(135,225,255); 
-                      }
-                      .itemService figure.selected {
-                          background-color: rgb(135,225,255); 
-                      }
                   </style>
               
                   <script>
                       document.addEventListener('DOMContentLoaded', function() {
                          const sliderWrapper = document.querySelector('.sliderWrapper');
                          const sliderItems = document.querySelectorAll('.sliderItem');
-                         const figure = document.querySelectorAll('.sliderItem figure'); 
-                          
+                         
                           let isSliding = false;
                           
-                          const figureService = document.querySelectorAll('.itemService figure'); 
-           
-           
-                          figureService.forEach(item => {
-                              item.addEventListener('click', function() {
-                                  figureService.forEach(i => {
-                                      i.classList.remove('selected');
-                                      i.style.transform = 'scale(1)'; 
-                                  });
-                                  this.classList.add('selected');
-                              });
-                          });
+                          
                           
                           sliderWrapper.addEventListener('mousedown', function() {
                               isSliding = true;
@@ -458,7 +564,7 @@ new class extends Component
                           });
               
                           
-                          figure.forEach(item => {
+                          sliderItems.forEach(item => {
                               item.addEventListener('click', function() {
                                   figure.forEach(i => {
                                       i.classList.remove('selected');

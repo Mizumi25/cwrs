@@ -25,10 +25,6 @@ class ListAllReservations extends ListRecords
         ->badge($this->getTotalCount()),
         'approved' => ListRecords\Tab::make()->query(fn ($query) => $query->where('status', 'approve'))
         ->badge($this->getCountByStatus('approve')),
-        'declined' => ListRecords\Tab::make()->query(fn ($query) => $query->where('status', 'decline'))
-        ->badge($this->getCountByStatus('decline')),
-        'cancelled' => ListRecords\Tab::make()->query(fn ($query) => $query->where('status', 'cancelled'))
-        ->badge($this->getCountByStatus('cancelled')),
         'ongoing' => ListRecords\Tab::make()->query(fn ($query) => $query->where('status', 'ongoing'))
         ->badge($this->getCountByStatus('ongoing')),
         'done' => ListRecords\Tab::make()->query(fn ($query) => $query->where('status', 'done'))

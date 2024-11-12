@@ -54,7 +54,7 @@ class VehicleTypeResource extends Resource
                           ->extraAttributes([
                               'class' => 'plcae-items-center mx-auto mb-4 w-[20vw] h-[20vh]' 
                           ]),
-                      TextColumn::make('name')-searchable()
+                      TextColumn::make('name')->searchable()
                           ->label('Vehicle Name')
                           ->weight('bold')
                           ->extraAttributes(['class' => 'text-center']), 

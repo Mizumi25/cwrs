@@ -3,10 +3,12 @@
 use Illuminate\Support\Facades\Route;
 use App\Models\Reservation;
 use App\Models\Payment;
+use App\Livewire\Actions\Logout;
 
 Route::view('/', 'welcome')->name('welcome');
 
-Route::get('/logout', '\App\Http\Controllers\Auth\LoginController@logout');
+Route::get('/logout', Logout::class)->name('logout');
+
 
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])

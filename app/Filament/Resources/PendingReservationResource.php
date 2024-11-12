@@ -60,32 +60,47 @@ class PendingReservationResource extends Resource
             Tables\Columns\TextColumn::make('reservation_date')->label('Reservation Date')->searchable(),
             Tables\Columns\TextColumn::make('status')->label('Status'),
         ])
-        ->actions([
-            Tables\Actions\ViewAction::make(),
-            Tables\Actions\Action::make('approve')
-                ->label('Approve')
-                ->action(function (Reservation $record) {
-                    $record->update(['status' => 'approve']);
-                    Notification::make()
-                        ->title('Success')
-                        ->body('Reservation approved successfully!')
-                        ->success() 
-                        ->send();
-                })
-                ->color('success'),
-            Tables\Actions\Action::make('decline')
-                ->label('Decline')
-                ->action(function (Reservation $record) {
-                    $record->update(['status' => 'decline']);
-                    Notification::make()
-                        ->title('Success')
-                        ->body('Reservation declined successfully!')
-                        ->warning() 
-                        ->send();
-                })
-                ->color('danger'),
-        ])
-        ->searchable();
+                    ->actions([
+                Tables\Actions\ViewAction::make(),
+                Tables\Actions\Action::make('approve')
+                    ->label('Approve')
+                    ->action(function (Reservation $record) {
+                        $record->update(['status' => 'approve']);
+                        Notification::make()
+                            ->title('Success')
+                            ->body('Reservation approved successfully!')
+                            ->success() 
+                            ->send();
+                    })
+                    ->color('success'),
+                Tables\Actions\Action::make('decline')
+                    ->label('Decline')
+                    ->modalHeading('Decline Reservation')
+                    ->modalSubheading('Please provide a reason for declining the reservation.')
+                    ->form([
+                         Forms\Components\TextInput::make('decline_message')
+                            ->label('Decline Message')
+                            ->required(),
+                    ])
+                    ->action(function (Reservation $record, array $data) {
+                        // Store the decline reason and update the status
+                        $record->update([
+                            'status' => 'decline',
+                            'decline_message' => $data['decline_message'],
+                        ]);
+                        
+                        // Soft delete the reservation (archive it)
+                        $record->delete();
+                        
+                        Notification::make()
+                            ->title('Success')
+                            ->body('Reservation declined successfully!')
+                            ->warning() 
+                            ->send();
+                    })
+                    ->color('danger'),
+            ])
+            ->searchable();
 }
 
     public static function getPages(): array
@@ -99,3 +114,6 @@ class PendingReservationResource extends Resource
         return false; 
     }
 }
+
+
+

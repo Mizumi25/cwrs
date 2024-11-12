@@ -4,11 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Reservation extends Model
 {
     /** @use HasFactory<\Database\Factories\ReservationFactory> */
-    use HasFactory;
+    use HasFactory, SoftDeletes;
     
     protected $fillable = [
         'user_id',
@@ -18,6 +19,7 @@ class Reservation extends Model
         'payment_id',
         'reservation_date',
         'status',
+        'decline_message',
     ];
 
     // Define relationships

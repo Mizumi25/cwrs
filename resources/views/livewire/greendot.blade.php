@@ -24,9 +24,9 @@ new class extends Component {
 
 <div class="bg-red-700 relative h-full w-full">
     @if ($is_active)
-        <span class="bg-green-500 w-[2rem] h-[2rem] rounded-full absolute bottom-0 right-[30%] z-[100]"></span> <!-- Active -->
+        <span class="bg-green-500 w-[2rem] h-[2rem] rounded-full absolute bottom-0 right-[30%] z-[10]"></span> <!-- Active -->
     @else
-        <span class="bg-gray-500 w-[2rem] h-[2rem] rounded-full absolute bottom-0 right-[30%] z-[100]"></span> <!-- Inactive -->
+        <span class="bg-gray-500 w-[2rem] h-[2rem] rounded-full absolute bottom-0 right-[30%] z-[10]"></span> <!-- Inactive -->
     @endif
 </div>
 
